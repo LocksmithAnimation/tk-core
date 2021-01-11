@@ -1,11 +1,16 @@
 *.py[co]
 
+# ignore pytest caches
+.cache
+
 # Ignore vim temporary and swap files
 *~
 [._]*.s[a-w][a-z]
 [._]s[a-w][a-z]
 
 # Packages
+*.egg
+*.egg-info
 dist
 build
 eggs
@@ -14,12 +19,18 @@ bin
 var
 sdist
 develop-eggs
-
+.installed.cfg
+.idea
+.project
+.pydevproject
+.settings
 
 # Installer logs
 pip-log.txt
 
 # Unit test / coverage reports
+.coverage
+.tox
 coverage.xml
 coverage_html_report
 htmlcov
@@ -27,7 +38,14 @@ htmlcov
 #Translations
 *.mo
 
-.*
-!/.gitignore
-!/.gitattributes
-!/.pre-commit-config.yaml
+#Mr Developer
+.mr.developer.cfg
+
+# os files
+.DS_Store
+
+# pyenv
+.python-version
+
+# venv
+venv
