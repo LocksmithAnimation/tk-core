@@ -17,6 +17,8 @@ not be called directly. Interfaces and implementation of this module may change
 at any point.
 --------------------------------------------------------------------------------
 """
+import os
+import sys
 from tank_vendor import shotgun_api3
 from tank_vendor import six
 from .web_login_support import get_shotgun_authenticator_support_web_login
@@ -50,6 +52,18 @@ USER_INPUT_DELAY_BEFORE_SSO_CHECK = 300
 
 # Let's put at 5 seconds the maximum time we might wait for a SSO check thread.
 THREAD_WAIT_TIMEOUT_MS = 5000
+
+
+def _is_running_in_desktop():
+    """
+    Indicate if we are in the context of the ShotGrid Desktop.
+
+    When the ShotGrid Desktop is used, we want to disregard the value returned
+    by the call to `get_shotgun_authenticator_support_web_login()` when the
+    target site is using Autodesk Identity.
+    """
+    executable_name = os.path.splitext(os.path.basename(sys.executable))[0].lower()
+    return executable_name in ["shotgun", "shotgrid"]
 
 
 class QuerySiteAndUpdateUITask(QtCore.QThread):
@@ -171,7 +185,7 @@ class LoginDialog(QtGui.QDialog):
         self.ui.setupUi(self)
 
         # Set the title
-        self.setWindowTitle("SG Login")
+        self.setWindowTitle("ShotGrid Login")
 
         # Assign credentials
         self._http_proxy = http_proxy
@@ -188,7 +202,7 @@ class LoginDialog(QtGui.QDialog):
         # Apply the stylesheet manually, Qt doesn't see it otherwise...
         completer_style = self.styleSheet() + ("\n\nQWidget {" "font-size: 12px;" "}")
         self.ui.site.set_style_sheet(completer_style)
-        self.ui.site.set_placeholder_text("example.shotgunstudio.com")
+        self.ui.site.set_placeholder_text("example.shotgrid.autodesk.com")
         self.ui.login.set_style_sheet(completer_style)
         self.ui.login.set_placeholder_text("login")
 
@@ -206,7 +220,8 @@ class LoginDialog(QtGui.QDialog):
         # If the host is fixed, disable the site textbox.
         if fixed_host:
             self._disable_text_widget(
-                self.ui.site, "The SG site has been predefined and cannot be modified.",
+                self.ui.site,
+                "The ShotGrid site has been predefined and cannot be modified.",
             )
 
         # Disable keyboard input in the site and login boxes if we are simply renewing the session.
@@ -369,9 +384,11 @@ class LoginDialog(QtGui.QDialog):
         """
         # We only update the GUI if there was a change between to mode we
         # are showing and what was detected on the potential target site.
-        use_web = (
-            self._query_task.sso_enabled or self._query_task.autodesk_identity_enabled
-        )
+        use_web = self._query_task.sso_enabled
+
+        if _is_running_in_desktop():
+            logger.info("Using the Web Login with the ShotGrid Desktop")
+            use_web = use_web or self._query_task.autodesk_identity_enabled
 
         # If we have full support for Web-based login, or if we enable it in our
         # environment, use the Unified Login Flow for all authentication modes.

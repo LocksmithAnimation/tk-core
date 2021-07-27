@@ -117,7 +117,7 @@ except ImportError as e:
 
 # ----------------------------------------------------------------------------
 # Version
-__version__ = "3.2.6"
+__version__ = "3.3.1"
 
 # ----------------------------------------------------------------------------
 # Errors
@@ -176,6 +176,9 @@ class UserCredentialsNotAllowedForSSOAuthenticationFault(Fault):
 
 class UserCredentialsNotAllowedForOxygenAuthenticationFault(Fault):
     """
+    WARNING: This exception is no longer used, but has been left to avoid breaking
+             existing code.
+
     Exception when the server is configured to use Oxygen. It is not possible to use
     a username/password pair to authenticate on such server.
     """
@@ -219,10 +222,10 @@ class ServerCapabilities(object):
         except AttributeError:
             self.version = None
         if not self.version:
-            raise ShotgunError("The SG Server didn't respond with a version number. "
+            raise ShotgunError("The ShotGrid Server didn't respond with a version number. "
                                "This may be because you are running an older version of "
-                               "SG against a more recent version of the SG API. "
-                               "For more information, please contact SG Support.")
+                               "ShotGrid against a more recent version of the ShotGrid API. "
+                               "For more information, please contact ShotGrid Support.")
 
         if len(self.version) > 3 and self.version[3] == "Dev":
             self.is_dev = True
@@ -773,9 +776,6 @@ class Shotgun(object):
 
         >>> sg.info()
         {'full_version': [8, 2, 1, 0], 'version': [8, 2, 1], 'user_authentication_method': 'default', ...}
-
-        Tokens and values
-        -----------------
 
         ::
 
@@ -2161,7 +2161,7 @@ class Shotgun(object):
         .. note::
             When sharing a filmstrip thumbnail, it is required to have a static thumbnail in
             place before the filmstrip will be displayed in the Shotgun web UI.
-            If the :ref:`thumbnail is still processing and is using a placeholder 
+            If the :ref:`thumbnail is still processing and is using a placeholder
             <interpreting_image_field_strings>`, this method will error.
 
         Simple use case:
@@ -2188,7 +2188,7 @@ class Shotgun(object):
             share the static thumbnail. Defaults to ``False``.
         :returns: ``id`` of the Attachment entity representing the source thumbnail that is shared.
         :rtype: int
-        :raises: :class:`ShotgunError` if not supported by server version or improperly called, 
+        :raises: :class:`ShotgunError` if not supported by server version or improperly called,
             or :class:`ShotgunThumbnailNotReady` if thumbnail is still pending.
         """
         if not self.server_caps.version or self.server_caps.version < (4, 0, 0):
@@ -2349,7 +2349,7 @@ class Shotgun(object):
         assign tags to the Attachment.
 
         .. note::
-          Make sure to have retries for file uploads. Failures when uploading will occasionally happen. 
+          Make sure to have retries for file uploads. Failures when uploading will occasionally happen.
           When it does, immediately retrying to upload usually works
 
         >>> mov_file = '/data/show/ne2/100_110/anim/01.mlk-02b.mov'
@@ -2730,13 +2730,11 @@ class Shotgun(object):
         .. note::
             Support for passing in an int representing the Attachment ``id`` is deprecated
 
-        .. todo::
-            Support for a standard entity hash should be removed: #22150
-
         :returns: the download URL for the Attachment or ``None`` if ``None`` was passed to
             ``attachment`` parameter.
         :rtype: str
         """
+        # TODO: Support for a standard entity hash should be removed: #22150
         attachment_id = None
         if isinstance(attachment, int):
             attachment_id = attachment
@@ -3327,17 +3325,39 @@ class Shotgun(object):
         if self.config.localized is True:
             req_headers["locale"] = "auto"
 
-        http_status, resp_headers, body = self._make_call("POST", self.config.api_path,
-                                                          encoded_payload, req_headers)
-        LOG.debug("Completed rpc call to %s" % (method))
-        try:
-            self._parse_http_status(http_status)
-        except ProtocolError as e:
-            e.headers = resp_headers
-            # 403 is returned with custom error page when api access is blocked
-            if e.errcode == 403:
-                e.errmsg += ": %s" % body
-            raise
+        attempt = 1
+        max_attempts = 4 # Three retries on failure
+        backoff = 0.75 # Seconds to wait before retry, times the attempt number
+
+        while attempt <= max_attempts:
+            http_status, resp_headers, body = self._make_call(
+                "POST",
+                self.config.api_path,
+                encoded_payload,
+                req_headers,
+            )
+
+            LOG.debug("Completed rpc call to %s" % (method))
+
+            try:
+                self._parse_http_status(http_status)
+            except ProtocolError as e:
+                e.headers = resp_headers
+
+                # We've seen some rare instances of SG returning 502 for issues that
+                # appear to be caused by something internal to SG. We're going to
+                # allow for limited retries for those specifically.
+                if attempt != max_attempts and e.errcode == 502:
+                    LOG.debug("Got a 502 response. Waiting and retrying...")
+                    time.sleep(float(attempt) * backoff)
+                    attempt += 1
+                    continue
+                elif e.errcode == 403:
+                    # 403 is returned with custom error page when api access is blocked
+                    e.errmsg += ": %s" % body
+                raise
+            else:
+                break
 
         response = self._decode_response(resp_headers, body)
         self._response_errors(response)
@@ -3550,7 +3570,7 @@ class Shotgun(object):
         if status[0] >= 300:
             headers = "HTTP error from server"
             if status[0] == 503:
-                errmsg = "SG is currently down for maintenance or too busy to reply. Please try again later."
+                errmsg = "ShotGrid is currently down for maintenance or too busy to reply. Please try again later."
             raise ProtocolError(self.config.server,
                                 error_code,
                                 errmsg,
@@ -3622,8 +3642,6 @@ class Shotgun(object):
         ERR_2FA = 106
         # error code when SSO is activated on the site, preventing the use of username/password for authentication.
         ERR_SSO = 108
-        # error code when Oxygen is activated on the site, preventing the use of username/password for authentication.
-        ERR_OXYG = 110
 
         if isinstance(sg_response, dict) and sg_response.get("exception"):
             if sg_response.get("error_code") == ERR_AUTH:
@@ -3636,12 +3654,7 @@ class Shotgun(object):
                 raise UserCredentialsNotAllowedForSSOAuthenticationFault(
                     sg_response.get("message",
                                     "Authentication using username/password is not "
-                                    "allowed for an SSO-enabled SG site")
-                )
-            elif sg_response.get("error_code") == ERR_OXYG:
-                raise UserCredentialsNotAllowedForOxygenAuthenticationFault(
-                    sg_response.get("message", "Authentication using username/password is not "
-                                    "allowed for an Autodesk Identity enabled SG site")
+                                    "allowed for an SSO-enabled ShotGrid site")
                 )
             else:
                 # raise general Fault
