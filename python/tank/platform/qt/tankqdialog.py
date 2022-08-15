@@ -198,6 +198,15 @@ class TankQDialog(TankDialogBase):
         # Set the WA_DeleteOnClose attribute to be sure the dialog will be fully destroyed on close
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
+        self.setWindowFlags(
+            self.windowFlags()
+            | QtCore.Qt.WindowTitleHint
+            | QtCore.Qt.WindowMaximizeButtonHint
+            | QtCore.Qt.WindowMinimizeButtonHint
+            | QtCore.Qt.WindowCloseButtonHint
+            | QtCore.Qt.Window
+        )
+
         ########################################################################################
         # set up the main UI and header
         self.ui = ui_tank_dialog.Ui_TankDialog()
