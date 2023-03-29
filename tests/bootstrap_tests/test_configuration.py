@@ -13,11 +13,12 @@ from __future__ import with_statement
 import uuid
 import os
 import sys
-from mock import patch
+from mock import patch, Mock
 
 from tank_test.tank_test_base import setUpModule  # noqa
-from tank_test.tank_test_base import ShotgunTestBase, TankTestBase
+from tank_test.tank_test_base import ShotgunTestBase, TankTestBase, temp_env_var
 
+from tank.bootstrap import constants
 from sgtk.bootstrap.cached_configuration import CachedConfiguration
 from sgtk.bootstrap.configuration import Configuration
 from sgtk.authentication import ShotgunAuthenticator, ShotgunSamlUser
