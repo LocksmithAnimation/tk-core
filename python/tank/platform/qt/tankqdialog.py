@@ -62,13 +62,11 @@ class TankQDialog(TankDialogBase):
 
         widgets = [widget]
         for w in widgets:
-
             # look through class hierarchy - can't use isinstance here
             # because we don't know which module the BrowserWidget would
             # be from!
             cls_type = None
             for cls in inspect.getmro(type(w)):
-
                 # stop if we've previously checked this class:
                 cls_type = checked_classes.get(cls, None)
                 if cls_type != None:
@@ -234,7 +232,6 @@ class TankQDialog(TankDialogBase):
         self.ui.top_group.setVisible(show_tk_title_bar)
 
         if show_tk_title_bar:
-
             ########################################################################################
             # set up the title bar and configuration panel
 
@@ -308,12 +305,9 @@ class TankQDialog(TankDialogBase):
                 if p is None:
                     formatted = "Undefined"
                 elif show_type:
-                    formatted = "%s %s" % (
-                        six.ensure_str(p.get("type", "")),
-                        six.ensure_str(p.get("name", "")),
-                    )
+                    formatted = "{} {}".format(p.get("type"), p.get("name"))
                 else:
-                    formatted = "%s" % six.ensure_str(p.get("name", ""))
+                    formatted = "{}".format(p.get("name"))
 
                 return formatted
 
@@ -632,7 +626,6 @@ class TankQDialog(TankDialogBase):
         Toggle the visibility of the info panel, animating the transition.
         """
         if self._info_mode:
-
             self.setUpdatesEnabled(False)
             try:
                 # activate page 1 again - note that this will reset all positions!
@@ -688,7 +681,6 @@ class TankQDialog(TankDialogBase):
             self.grp.start()
 
         else:
-
             # activate page 2 - note that this will reset all positions!
             self.ui.stackedWidget.setCurrentIndex(1)
             # this hides page page 1, but let's show it again
@@ -759,7 +751,6 @@ class TankQDialog(TankDialogBase):
         # launch one window for each location on disk
         paths = self._bundle.context.filesystem_locations
         for disk_location in paths:
-
             url = QtCore.QUrl.fromLocalFile(disk_location)
             status = QtGui.QDesktopServices.openUrl(url)
 
@@ -784,7 +775,6 @@ class TankQDialog(TankDialogBase):
             self._bundle.log_error(e)
 
         try:
-
             # now restart the engine
             current_context = self._bundle.context
             current_engine_name = self._bundle.engine.name
