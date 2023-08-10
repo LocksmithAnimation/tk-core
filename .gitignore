@@ -35,6 +35,7 @@ pip-log.txt
 coverage.xml
 coverage_html_report
 htmlcov
+tests/python/third_party
 
 #Translations
 *.mo
