@@ -168,6 +168,13 @@ context_change.py
 .. autoclass:: context_change.ContextChange
     :members:
 
+default_storage_root.py
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: default_storage_root
+.. autoclass:: default_storage_root.DefaultStorageRoot
+    :members:
+
 engine_init.py
 ~~~~~~~~~~~~~~
 
@@ -383,27 +390,12 @@ The following exceptions are raised by the Toolkit Core API classes:
     :inherited-members:
     :members:
 
-.. autoclass:: TankFileDoesNotExistError
-    :show-inheritance:
-    :inherited-members:
-    :members:
-
-.. autoclass:: TankInvalidInterpreterLocationError
-    :show-inheritance:
-    :inherited-members:
-    :members:
-
 .. autoclass:: TankInvalidCoreLocationError
     :show-inheritance:
     :inherited-members:
     :members:
 
 .. autoclass:: TankNotPipelineConfigurationError
-    :show-inheritance:
-    :inherited-members:
-    :members:
-
-.. autoclass:: TankUnreadableFileError
     :show-inheritance:
     :inherited-members:
     :members:
