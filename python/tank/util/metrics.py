@@ -23,13 +23,17 @@ from collections import deque
 from threading import Event, Thread, Lock
 import platform
 from tank_vendor.six.moves import urllib
-from tank_vendor import six
 from copy import deepcopy
 
 from . import constants, sgre as re
 
 # use api json to cover py 2.5
 from tank_vendor import shotgun_api3, six
+
+try:
+    from tank_vendor import sgutils
+except ImportError:
+    from tank_vendor import six as sgutils
 
 json = shotgun_api3.shotgun.json
 
@@ -97,8 +101,8 @@ class PlatformInfo(object):
 
         try:
             # Get the distributon name and capitalize word(s) (e.g.: Ubuntu, Red Hat)
-            distribution = six.ensure_str(distro.linux_distribution()[0].title())
-            raw_version_str = six.ensure_str(distro.linux_distribution()[1])
+            distribution = sgutils.ensure_str(distro.linux_distribution()[0].title())
+            raw_version_str = sgutils.ensure_str(distro.linux_distribution()[1])
 
             # For Linux we really just want the 'major' version component
             major_version_str = re.findall(r"\d*", raw_version_str)[0]
@@ -497,6 +501,26 @@ class MetricsDispatchWorkerThread(Thread):
                 data["event_properties"][
                     EventMetric.KEY_CORE_VERSION
                 ] = self._engine.sgtk.version
+
+                # If it's a desktop event...
+                # We split <desktop version> / <startup version>
+                # And store the <startup version> as the `Event Data` dict
+                if metric.is_desktop_event:
+                    host_app_version = data["event_properties"].get(
+                        EventMetric.KEY_HOST_APP_VERSION
+                    )
+                    try:
+                        desktop_version, startup_version = host_app_version.split("/")
+                    except ValueError:
+                        # host_app_version can be `unknown` on development/tests.
+                        pass
+                    else:
+                        data["event_properties"][
+                            EventMetric.KEY_HOST_APP_VERSION
+                        ] = desktop_version.strip()
+                        data["event_properties"]["Event Data"] = {
+                            "Startup Version": startup_version.strip()
+                        }
             else:
                 # Still log the event but change its name so it's easy to
                 # spot all unofficial events which are logged.
@@ -549,7 +573,7 @@ class MetricsDispatchWorkerThread(Thread):
             "auth_args": {"session_token": sg_connection.get_session_token()},
             "metrics": filtered_metrics_data,
         }
-        payload_json = six.ensure_binary(json.dumps(payload))
+        payload_json = sgutils.ensure_binary(json.dumps(payload))
 
         header = {"Content-Type": "application/json"}
         try:
@@ -611,6 +635,7 @@ class EventMetric(object):
     EVENT_NAME_FORMAT = "%s: %s"
 
     # List of events suported by our backend
+    # New events that use `EventMetric.log` should be added here.
     SUPPORTED_EVENTS = [
         EVENT_NAME_FORMAT % (GROUP_APP, "Logged In"),
         EVENT_NAME_FORMAT % (GROUP_APP, "Logged Out"),
@@ -632,6 +657,20 @@ class EventMetric(object):
         EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Saved Workfile"),
         EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Executed websockets command"),
         EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Render & Submit Version"),
+        EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Opened Breakdown2 App"),
+        EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Launch Open Workfile"),
+        EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Launch New Workfile"),
+        EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Transcode & Publish"),
+        EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Connected"),
+        EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Create"),
+        EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Shot Export"),
+        EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Opened Data Validation App"),
+        EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Collate/Cut Length"),
+        EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Export"),
+        EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Processed"),
+        EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Collate/Clip Length"),
+        EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Sequence Export"),
+        EVENT_NAME_FORMAT % (GROUP_TOOLKIT, "Audio Export"),
     ]
 
     # Event property keys
@@ -692,6 +731,24 @@ class EventMetric(object):
         :return: ``True`` if this event is supported and handled by ToolKit, ``False`` otherwise.
         """
         return repr(self) in EventMetric.SUPPORTED_EVENTS
+
+    @property
+    def is_desktop_event(self):
+        """
+        Determine whether the metric is a "Launched Software" event.
+
+        :return: ``True`` if this event is a "Launched Software" event, ``False`` otherwise.
+        """
+        return any(
+            (
+                self._group == EventMetric.GROUP_TOOLKIT
+                and self._name == "Launched Software",
+                self._group == EventMetric.GROUP_NAVIGATION
+                and self._name == "Viewed Projects",
+                self._group == EventMetric.GROUP_PROJECTS
+                and self._name == "Viewed Project Commands",
+            )
+        )
 
     @classmethod
     def log(cls, group, name, properties=None, log_once=False, bundle=None):

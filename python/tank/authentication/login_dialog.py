@@ -20,7 +20,6 @@ at any point.
 import os
 import sys
 from tank_vendor import shotgun_api3
-from tank_vendor import six
 from .. import constants
 from .web_login_support import get_shotgun_authenticator_support_web_login
 from .ui import resources_rc  # noqa
@@ -50,6 +49,11 @@ from .sso_saml2 import (
 )
 
 from .. import LogManager
+
+try:
+    from tank_vendor import sgutils
+except ImportError:
+    from tank_vendor import six as sgutils
 
 logger = LogManager.get_logger(__name__)
 
@@ -388,7 +392,7 @@ class LoginDialog(QtGui.QDialog):
 
         :returns: The site to connect to.
         """
-        return six.ensure_str(
+        return sgutils.ensure_str(
             connection.sanitize_url(self.ui.site.currentText().strip())
         )
 
@@ -398,7 +402,7 @@ class LoginDialog(QtGui.QDialog):
 
         :returns: The login to use for authentication.
         """
-        return six.ensure_str(self.ui.login.currentText().strip())
+        return sgutils.ensure_str(self.ui.login.currentText().strip())
 
     def _update_ui_according_to_site_support(self):
         """
@@ -586,6 +590,7 @@ class LoginDialog(QtGui.QDialog):
 
         self.ui.forgot_password_link.setVisible(
             method_selected == auth_constants.METHOD_BASIC
+            and self.site_info.user_authentication_method in ["default", "ldap"]
         )
 
         self.ui.button_options.setVisible(can_use_web or can_use_asl)
