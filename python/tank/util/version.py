@@ -164,7 +164,7 @@ def version_parse(version_string):
             return packaging.version.parse(version_string)
         except packaging.version.InvalidVersion:
             # Version cannot be parsed with packaging.version (SG-40480)
-            pass
+            return packaging.version.parse("0.0.0")
 
     if LooseVersion:
         with suppress_known_deprecation():
