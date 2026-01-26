@@ -178,6 +178,8 @@ def normalize_version_format(version: str) -> str:
 
     for compiled_pattern, replacement in _VERSION_PATTERNS:
         version = compiled_pattern.sub(replacement, version)
+    if not is_version_number(f"v{version}"):
+        version = "0.0.0"
 
     return version
 
